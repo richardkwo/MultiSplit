@@ -1,0 +1,28 @@
+# MultiSplit
+**Hypothesis testing with multiple data splits and exchangeable p-values**
+
+Statistical tests are sometimes constructed with data splitting. When such tests are applied to data, the result can depend on the way the data is split, which is typically random. Therefore, on a dataset, the result     of a test is random and not replicable. Further, such tests typically have low power because the full sample is not utlized. 
+
+R package `MultiSplit` properly aggregates the results from multiple data splits and reports the p-value of the aggregated statistic. The constructed test has level that asymptotically approaches the nominal level. Typically, by aggregating results from a sufficiently large number of data splits, the test becomes replicable and much more powerful. This package implements a generic method that handles any test that is constructed with "extra randomness", including random data splitting, resampling, imputation, etc.
+
+## Installation
+
+The package can be installed from GitHub.
+
+``` r
+# install.packages("devtools")
+# devtools::install_github("cran/kedd")
+devtools::install_github("richardkwo/MultiSplit")
+```
+
+In case of problem, first make sure dependency [kedd](https://cran.r-project.org/package=kedd) is properly installed. It is removed from CRAN but can be found from CRAN [archive](https://cran.r-project.org/src/contrib/Archive/kedd/) or [GitHub](https://github.com/cran/kedd).
+
+```R
+devtools::install_github("cran/kedd")
+```
+
+For a quick start, check out the vignette in folder `vignette/` and the documentation for main function `test.multisplit`.
+
+## Reproduction scripts
+
+Folder `scripts/` contains code for reproducing numerical experiments. 

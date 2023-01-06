@@ -1,0 +1,143 @@
+---
+title: "MultiSplit: Properly aggregate multiple data splits and exchangeable p-values"
+output: rmarkdown::html_vignette
+description: >
+  A short intrudction to the basic usage of MultiSplit
+vignette: >
+  %\VignetteIndexEntry{Put the title of your vignette here}
+  %\VignetteEngine{knitr::rmarkdown}
+  \usepackage[utf8]{inputenc}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+This vignette briefly illustrates the use of the package with three "hunt-and-test" procedures that use data splitting for hypothesis testing. Because the way that the data is random, the test constructed is randomized in the sense that the output is a random function of the data. For a dataset, running such a procedure $L$ times produces $L$ different results. This has two obvious drawbacks:
+
+1.  The analysis is not replicable.
+
+2.  Using one single result loses power.
+
+To solve both issues, we should properly aggregate the results from $L$ realizations. Package `MultiSplit` provides a simple framework for such aggregation that guarantees type-I error in large sample.
+
+```{r setup}
+library(plyr)
+library(MASS)
+library(MultiSplit)
+library(future)
+plan(multisession)   # run inner loop of `test.multisplit` in parallel
+```
+
+## Testing zero mean
+
+Let $X$ be a random vector. Consider testing the hypothesis that $X$ has mean zero from iid observations. For that purpose, we can randomly divide the sample into two parts of equal size. Let $\hat{\mu}_1$,$\hat{\mu}_2$ be the mean vector of the two parts. If hypothesis holds, we expect \$\\hat{\\mu}\_1\^{\\top} \\hat{\\mu}\_2 \\approx 0\$; otherwise, we expect $\hat{\mu}_1^{\top} \hat{\mu}_2 > 0$. This motivates the following test statistic $$T_n:=\frac{\sqrt{n / 2} \hat{\mu}_1^\top  \hat{\mu}_2}{\hat{\mu}_1^{\top} \hat{\Sigma}_2 \hat{\mu}_1}, $$
+
+which has a standard normal limit under the null hypothesis \$\\mathbb{E} X=\\mathbf{0}\$. Here $\hat{\Sigma}_2$ is the sample covariance of the second part. This "single-split" test statistic can be computed with the function below.
+
+```{r}
+test.mean.zero.single <- function(X) {
+  n <- nrow(X)
+  idx.1 <- sample(n, n/2)
+  mu.1 <- apply(X[idx.1, ], 2, mean)
+  mu.2 <- apply(X[-idx.1, ], 2, mean)
+  S.2 <- cov(X[-idx.1, ])
+  return(sqrt(n/2) * sum(mu.1 * mu.2) / sqrt(c(mu.1 %*% S.2 %*% mu.1)))
+}
+```
+
+Let us try it on $X \sim \mathcal{N}(\mu, \Sigma)$.
+
+```{r, fig.show="hold", out.width="40%"}
+p <- 3
+n <- 1000
+Sigma <- 0.5^outer(1:3, 1:3, "-")
+# under the null
+stat.single.null <- replicate(200, {
+  X <- mvrnorm(n, rep(0, p), Sigma)
+  test.mean.zero.single(X)})
+hist(stat.single.null, main="H0")
+# under the alt
+stat.single.alt <- replicate(200, {
+  X <- mvrnorm(n, rep(1.5 / sqrt(n), p), Sigma)
+  test.mean.zero.single(X)})
+hist(stat.single.alt, main="H1")
+```
+
+We can check its level and power at nominal level 0.05.
+
+```{r}
+level.single <- mean(stat.single.null > qnorm(0.95))
+power.single <- mean(stat.single.alt > qnorm(0.95))
+print(level.single)
+print(power.single)
+```
+
+But this test has high variability **conditional on data**. And its power can be improved as well.
+
+```{r, fig.align='center', echo=TRUE}
+X <- mvrnorm(n, rep(0, p), Sigma)
+replicate(10, test.mean.zero.single(X))
+```
+
+Now suppose we run it $L=50$ times and take the arithmetic average as our aggregated statistic $S_n$. This test statistic might have a weird null distribution.
+
+```{r, fig.align='center'}
+L <- 50
+T.mat <- t(replicate(200, {
+  X <- mvrnorm(n, rep(0, p), Sigma)
+  replicate(L, test.mean.zero.single(X))
+}))
+S.vec <- apply(T.mat, 1, mean)
+hist(S.vec, xlab="S", main="H0")
+```
+
+Nevertheless, statistic $S_n$ can be calibrated automatically by `MultiSplit`. The p-value according to $S_n$ can be computed with function `test.multisplit`.
+
+```{r}
+get.pval.S <- function(X) {
+  test.multisplit(X, test.mean.zero.single, 
+                  q.null = qnorm, 
+                  S=function(x) mean(x, na.rm=TRUE),
+                  reject.larger = TRUE, 
+                  B=200,
+                  n.splits=L)$p.value
+}
+```
+
+Here we must specify `q.null` to be the (pivotal, large-sample) null quantile function of the single-split test $T_n$. Statistic $S_n$ is defined through an aggregation function `S`.
+
+Let' s look an instance under the null.
+
+```{r}
+X <- mvrnorm(n, rep(0, p), Sigma)
+pval.single <- 1 - pnorm(replicate(5, test.mean.zero.single(X)))
+print(pval.single)
+pval.S <- replicate(5, get.pval.S(X))
+print(pval.S)
+```
+
+The p-value from $S_n$ has less conditional variability.
+
+Now consider an instance under the alternative.
+
+```{r}
+X <- mvrnorm(n, rep(2.6 / sqrt(n), p), Sigma)
+pval.single <- 1 - pnorm(replicate(5, test.mean.zero.single(X)))
+print(pval.single)
+pval.S <- replicate(5, get.pval.S(X))
+print(pval.S)
+```
+
+The $S_n$ test renders a clear rejection!
+
+## Testing multivariate unimodality
+
+See the single-split `test.unimodal.dip.hunt.single` and the example provided in the documentation for `test.multisplit`.
+
+## Testing goodness-of-fit of quantile regression
+
+See the single-split `gof.quantreg.test.single`, which can be aggregated by `test.multisplit`.
