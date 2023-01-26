@@ -23,6 +23,14 @@ devtools::install_github("cran/kedd")
 
 For a quick start, check out the vignette in folder `vignette/` and the documentation for main function `test.multisplit`.
 
+## Parallelization
+
+The package supports parallelized subsampling with package [future](https://cran.r-project.org/package=future). The mode of parallelization is controlled by command `plan()` (e.g., `plan(multisession)`). See also [here](https://cran.r-project.org/web/packages/future/vignettes/future-1-overview.html). 
+
 ## Reproduction scripts
 
 Folder `scripts/` contains code for reproducing numerical experiments. 
+
+## Reference
+
+Guo, F. Richard, and Rajen D. Shah. "Rank-transformed subsampling: inference for multiple data splitting and exchangeable p-values." [*arXiv:2301.02739*](https://arxiv.org/abs/2301.02739) (2023).
