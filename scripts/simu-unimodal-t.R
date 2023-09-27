@@ -12,7 +12,7 @@ args <- commandArgs(trailingOnly = TRUE)
 n.realizations <- 20
 configs.df <- expand.grid(n.splits=50,
                           n=1000,
-                          B=5,
+                          B=500,
                           rho=0.5, 
                           nu=4,
                           p=c(5, 50, 100, 500, 1000),
@@ -70,7 +70,7 @@ simu.df <- rdply(n.realizations, {
                               B=B,
                               verbose=TRUE)$p.value
   pval.sigclust <- sigclust::sigclust(X, nsim=1000, icovest=2)@pval
-  data.frame(method=c(names(pval.dip), "sigclust"),
+  data.frame(method=c("dip.hunting", "sigclust"),
              pval=c(pval.dip, pval.sigclust))
 }, .id = "realization")
 
@@ -85,7 +85,7 @@ simu.df$sep.size <- sep.size
 simu.df$setting <- "t"
 
 
-save.filename <- tempfile("unimodal-", tmpdir="../simu/", fileext=".csv")
+save.filename <- tempfile("unimodal-", tmpdir=".", fileext=".csv")
 write.csv(simu.df,
           file=save.filename,
           row.names = FALSE)

@@ -57,7 +57,7 @@ simu.df$p <- p
 simu.df$sep.size <- sep.size
 simu.df$setting <- "balls"
 
-save.filename <- tempfile("unimodal-", tmpdir="../simu/", fileext=".csv")
+save.filename <- tempfile("unimodal-", tmpdir=".", fileext=".csv")
 write.csv(simu.df,
           file=save.filename,
           row.names = FALSE)

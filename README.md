@@ -31,6 +31,14 @@ The package supports parallelized subsampling with package [future](https://cran
 
 Folder `scripts/` contains code for reproducing numerical experiments. 
 
+## Changelog
+
+* v0.1.1
+  * Fixed malfunction of `kedd` due to new `if` [behavior in R 4.2+](https://stackoverflow.com/questions/72848442/r-warning-lengthx-2-1-in-coercion-to-logical1)
+* v0.1.0
+  * Intial release
+
+
 ## Reference
 
 Guo, F. Richard, and Rajen D. Shah. "Rank-transformed subsampling: inference for multiple data splitting and exchangeable p-values." [*arXiv:2301.02739*](https://arxiv.org/abs/2301.02739) (2023).

@@ -4,12 +4,20 @@
 \alias{test.unimodal.dip.hunt.single}
 \title{Dip hunting test (single data split) for multivariate linear unimodality}
 \usage{
-test.unimodal.dip.hunt.single(X, h.sel = kedd::h.mlcv, n.monte.carlo = 1000)
+test.unimodal.dip.hunt.single(
+  X,
+  h.sel = kedd::h.mlcv,
+  kernel = "gaussian",
+  n.monte.carlo = 1000
+)
 }
 \arguments{
 \item{X}{Matrix whose rows are iid copies of \eqn{X}}
 
 \item{h.sel}{Bandwidth selector}
+
+\item{kernel}{kernel in kernel density estimation. Default to Gaussian
+kernel. See \code{\link[kedd]{dkde}} for a list of options.}
 
 \item{n.monte.carlo}{bootstrap sample size}
 }

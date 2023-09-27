@@ -42,12 +42,13 @@ get.ref.dist <- function(beta.est, n, n.monte.carlo=1000) {
 }
 
 # estimate d -------
-estimate.d <- function(x, h.sel=kedd::h.ucv) {
+estimate.d <- function(x, h.sel=kedd::h.ucv, kernel="gaussian") {
   h.f <- h.sel(x, deriv.order = 0)$h
-  f.hat <- suppressWarnings(kedd::dkde(x, deriv.order = 0, h=h.f))
+  f.hat <- suppressWarnings(kedd::dkde(x, deriv.order = 0, h=h.f, kernel=kernel))
   eval.points <- f.hat$eval.points
   h.f.2nd <- h.sel(x, deriv.order=2)$h
-  f.hat.2nd.deriv <- suppressWarnings(kedd::dkde(x, y=eval.points, deriv.order = 2, h=h.f.2nd))
+  f.hat.2nd.deriv <- suppressWarnings(kedd::dkde(x, y=eval.points, deriv.order = 2, 
+                                                 h=h.f.2nd, kernel=kernel))
   x0.idx <- which.max(f.hat$est.fx)
   d.hat <- abs(f.hat.2nd.deriv$est.fx[x0.idx]) / f.hat$est.fx[x0.idx]^3
   return(d.hat)
@@ -58,6 +59,8 @@ estimate.d <- function(x, h.sel=kedd::h.ucv) {
 #' @param x univariate data vector
 #' @param h.sel bandwidth selector. Default to "maximum likelihood cross 
 #'    validation" selector \code{\link[kedd]{h.mlcv}}.
+#' @param kernel kernel in kernel density estimation. Default to Gaussian 
+#'    kernel. See \code{\link[kedd]{dkde}} for a list of options.
 #' @param n.monte.carlo bootstrap sample size
 #' @export
 #' @return p-value
@@ -75,13 +78,13 @@ estimate.d <- function(x, h.sel=kedd::h.ucv) {
 #' \dontrun{
 #' dip.test.pval(rnorm(200))
 #' dip.test.pval(c(rnorm(200), rnorm(200) + 3))}
-dip.test.pval <- function(x, h.sel=kedd::h.mlcv, n.monte.carlo=1000) {
+dip.test.pval <- function(x, h.sel=kedd::h.mlcv, kernel="gaussian", n.monte.carlo=1000) {
   stopifnot(is.vector(x))
   # normalize, somehow important for mlcv
   x <- (x - mean(x)) / stats::sd(x)
   x <- (x - min(x)) / (max(x) - min(x))
   # estimate d
-  d.hat <- estimate.d(x, h.sel=h.sel)
+  d.hat <- estimate.d(x, h.sel=h.sel, kernel=kernel)
   beta.hat <- solve.beta(d.hat)
   ref.vals <- get.ref.dist(beta.hat, length(x), n.monte.carlo = n.monte.carlo)
   dip.x <- diptest::dip(x, min.is.0 = TRUE) * 2
@@ -109,6 +112,8 @@ find.direction <- function(data) {
 #' 
 #' @param X Matrix whose rows are iid copies of \eqn{X}
 #' @param h.sel Bandwidth selector
+#' @param kernel kernel in kernel density estimation. Default to Gaussian 
+#'    kernel. See \code{\link[kedd]{dkde}} for a list of options.
 #' @param n.monte.carlo bootstrap sample size
 #' @return p-value
 #' @export
@@ -130,7 +135,8 @@ find.direction <- function(data) {
 #' # bimodal
 #' X <- simu.two.balls(n=1000, p=50, sep=2)
 #' replicate(10, test.unimodal.dip.hunt.single(X))}
-test.unimodal.dip.hunt.single <- function(X, h.sel=kedd::h.mlcv, 
+test.unimodal.dip.hunt.single <- function(X, h.sel=kedd::h.mlcv,
+                                          kernel="gaussian",
                                           n.monte.carlo=1000) {
   # split data
   n <- nrow(X)
@@ -141,7 +147,7 @@ test.unimodal.dip.hunt.single <- function(X, h.sel=kedd::h.mlcv,
   dir.vec <- find.direction(X.0)
   # compute stat and get p-val
   y <- c(X.1 %*% dir.vec)
-  dip.test.pval(y, h.sel=h.sel, n.monte.carlo = n.monte.carlo)
+  dip.test.pval(y, h.sel=h.sel, kernel=kernel, n.monte.carlo = n.monte.carlo)
 }
 
 

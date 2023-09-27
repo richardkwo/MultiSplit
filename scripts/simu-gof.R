@@ -102,7 +102,7 @@ simu.df$nonlinear.fun <- nonlinear.fun
 simu.df$err <- err
 simu.df$spec <- spec
 
-save.filename <- tempfile("gof-", tmpdir="../simu/", fileext=".csv")
+save.filename <- tempfile("gof-", tmpdir=".", fileext=".csv")
 write.csv(simu.df,
           file=save.filename,
           row.names = FALSE)

@@ -4,13 +4,21 @@
 \alias{dip.test.pval}
 \title{Dip test for univariate unimodalty}
 \usage{
-dip.test.pval(x, h.sel = kedd::h.mlcv, n.monte.carlo = 1000)
+dip.test.pval(
+  x,
+  h.sel = kedd::h.mlcv,
+  kernel = "gaussian",
+  n.monte.carlo = 1000
+)
 }
 \arguments{
 \item{x}{univariate data vector}
 
 \item{h.sel}{bandwidth selector. Default to "maximum likelihood cross
 validation" selector \code{\link[kedd]{h.mlcv}}.}
+
+\item{kernel}{kernel in kernel density estimation. Default to Gaussian
+kernel. See \code{\link[kedd]{dkde}} for a list of options.}
 
 \item{n.monte.carlo}{bootstrap sample size}
 }
