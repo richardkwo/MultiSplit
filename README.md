@@ -1,7 +1,7 @@
 # MultiSplit
 **Hypothesis testing with multiple data splits and exchangeable p-values**
 
-Statistical tests are sometimes constructed with data splitting. When such tests are applied to data, the result can depend on the way the data is split, which is typically random. Therefore, on a dataset, the result     of a test is random and not replicable. Further, such tests typically have low power because the full sample is not utlized. 
+Statistical tests are sometimes constructed with data splitting. When such tests are applied to data, the result can depend on the way the data is split, which is typically random. Therefore, on a dataset, the result of a test is random and not replicable. Further, such tests typically have low power because the full sample is not utilized. 
 
 R package `MultiSplit` properly aggregates the results from multiple data splits and reports the p-value of the aggregated statistic. The constructed test has level that asymptotically approaches the nominal level. Typically, by aggregating results from a sufficiently large number of data splits, the test becomes replicable and much more powerful. This package implements a generic method that handles any test that is constructed with "extra randomness", including random data splitting, resampling, imputation, etc.
 
@@ -35,11 +35,11 @@ Folder `scripts/` contains code for reproducing numerical experiments.
 
 * v1.1.0: 
   - kernel density smoothing for subsampling estimate of p-value
-  - retain original observed statistic anmd subsamples in the return of `test.multusplit`
+  - retain original observed statistic and subsamples in the return of `test.multisplit`
 * v0.1.1
   * Fixed malfunction of `kedd` due to new `if` [behavior in R 4.2+](https://stackoverflow.com/questions/72848442/r-warning-lengthx-2-1-in-coercion-to-logical1)
 * v0.1.0
-  * Intial release
+  * Initial release
 
 
 ## Reference
