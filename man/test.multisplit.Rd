@@ -9,11 +9,12 @@ test.multisplit(
   test.single,
   q.null = stats::qnorm,
   S = function(x) mean(x, na.rm = TRUE),
-  reject.larger = TRUE,
+  side = 1,
   n.splits = 50,
   B = NULL,
   packages = c(),
-  verbose = FALSE
+  verbose = FALSE,
+  .plot = FALSE
 )
 }
 \arguments{
@@ -30,12 +31,13 @@ quantile functions other than \code{qnorm} and \code{qunif} may not be theoretic
 supported.}
 
 \item{S}{aggregation function(s). It can be either a single aggregation function
-(e.g., \code{S=mean}) or a list of aggregation functions (e.g., \code{S=c(mean, max)}).
+(e.g., \code{S=mean}) or a list of aggregation functions (e.g., \code{S=list(mean, max)}).
 For the latter case, a p-value that automatically adapts to the most
 powerful aggregation function in the list will be returned.}
 
-\item{reject.larger}{The side of the test. Use \code{FALSE} if \code{test.single} returns
-a p-value.}
+\item{side}{The side of the test: \code{1} for right-sided (reject larger values of the
+test statistic), \code{-1} for left-sided (reject smaller values) and \code{0} for two-sided.
+Use \code{-1} if \code{test.single} returns a p-value.}
 
 \item{n.splits}{Number of applying \code{test.single} to \code{data} (e.g., number of
 data splits)}
@@ -47,10 +49,21 @@ When set to \code{NULL}, will set to default value \code{80 * log(nrow(data))}.}
 to \code{\link[future]{future}}. Default to \code{c()}.}
 
 \item{verbose}{If \code{TRUE}, will print details.}
+
+\item{.plot}{If \code{TRUE}, will plot the observed value along with the subsamples.
+Default to \code{FALSE}.}
 }
 \value{
-A list consists of the aggregated observed statistic(s) and its
-p-value.
+A list consists of the following fields:
+\itemize{
+\item \code{p.value}: p-value (without smoothing the subsample's empirical distribution)
+\item \code{p.value.kde}: p-value (with Gaussian kernel smoothing of the subsample's empirical distribution)
+\item \code{T.obs.vec}: the vector of observed statistics resulting from \code{n.splits} splits
+\item \code{T.agg.obs}: the aggregated observed statistic (a vector if \code{S} contains more than one function)
+\item \code{T.agg.sub}: the subsample counterparts of the aggregated observed statistic (a matrix
+if \code{S} contains more than one function, whose columns correspond
+to the functions in \code{S})
+}
 }
 \description{
 Compute a randomized test statistic multiple times (e.g., through multiple

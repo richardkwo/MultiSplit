@@ -1,0 +1,3 @@
+- v1.1.0: 
+  - kernel density smoothing for subsampling estimate of p-value
+  - retain original observed statistic anmd subsamples in the return of `test.multusplit`

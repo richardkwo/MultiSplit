@@ -14,11 +14,12 @@
 #'    quantile functions other than `qnorm` and `qunif` may not be theoretically
 #'    supported.
 #' @param S aggregation function(s). It can be either a single aggregation function
-#'    (e.g., `S=mean`) or a list of aggregation functions (e.g., `S=c(mean, max)`).
+#'    (e.g., `S=mean`) or a list of aggregation functions (e.g., `S=list(mean, max)`).
 #'    For the latter case, a p-value that automatically adapts to the most 
 #'    powerful aggregation function in the list will be returned.
-#' @param reject.larger The side of the test. Use `FALSE` if `test.single` returns
-#'    a p-value.
+#' @param side The side of the test: `1` for right-sided (reject larger values of the 
+#'    test statistic), `-1` for left-sided (reject smaller values) and `0` for two-sided. 
+#'    Use `-1` if `test.single` returns a p-value.
 #' @param n.splits Number of applying `test.single` to `data` (e.g., number of 
 #'    data splits)
 #' @param B Number of subsamples (similar to number of bootstrap replications).
@@ -26,9 +27,17 @@
 #' @param packages A list of packages that `test.single` depends on to be passed 
 #'    to \code{\link[future]{future}}. Default to `c()`.
 #' @param verbose If `TRUE`, will print details. 
+#' @param .plot If `TRUE`, will plot the observed value along with the subsamples. 
+#'    Default to `FALSE`.
 #' @export
-#' @return A list consists of the aggregated observed statistic(s) and its
-#'    p-value.
+#' @return A list consists of the following fields: 
+#'   - `p.value`: p-value (without smoothing the subsample's empirical distribution)
+#'   - `p.value.kde`: p-value (with Gaussian kernel smoothing of the subsample's empirical distribution)
+#'   - `T.obs.vec`: the vector of observed statistics resulting from `n.splits` splits
+#'   - `T.agg.obs`: the aggregated observed statistic (a vector if `S` contains more than one function)
+#'   - `T.agg.sub`: the subsample counterparts of the aggregated observed statistic (a matrix 
+#'              if `S` contains more than one function, whose columns correspond
+#'              to the functions in `S`)
 #' @note Package \pkg{future} is used to compute subsampling in parallel. To
 #'    enable parallelization, the user is responsible to select the right "plan" 
 #'    with \code{\link[future]{plan}} beforehand.
@@ -59,10 +68,19 @@
 test.multisplit <- function(data, test.single, 
                             q.null=stats::qnorm,
                             S=function(x) mean(x, na.rm=TRUE),
-                            reject.larger=TRUE,
+                            side=1,
                             n.splits=50, B=NULL, 
                             packages=c(), 
-                            verbose=FALSE) {
+                            verbose=FALSE, 
+                            .plot=FALSE) {
+  stopifnot(side %in% c(-1,0,1))
+  if (side==1) {
+    .side <- "right"
+  } else if (side==-1) {
+    .side <- "left"
+  } else {
+    .side <- "two"
+  }
   n <- nrow(data)
   if (is.null(B)) {
     B <- floor(5 * n / log(n))
@@ -100,23 +118,63 @@ test.multisplit <- function(data, test.single,
   if (!is.list(S)) {
     # single aggregation function ------
     if (verbose) {
-      message(sprintf("Single aggregation function (reject for %s values)", ifelse(reject.larger, "larger", "smaller")))
+      message(sprintf("Single aggregation function (%s-sided test)", .side))
     }
     T.obs <- S(T.obs.vec)
     T.sub <- apply(T.mat.transformed, 1, S)
-    if (reject.larger) {
-      p.value <- mean(T.sub > T.obs)
     } else {
-      p.value <- mean(T.sub < T.obs)
+      # multiple aggregation functions -----
+      if (verbose) {
+        message(sprintf("Adapting to the best among %d aggregation functions (%s-sided test)", length(S), .side))
+      }
+      T.obs.multiple <- sapply(S, function(.s) .s(T.obs.vec))
+      T.sub.multiple <- sapply(S, function(.s) apply(T.mat.transformed, 1, .s))
+      R.list <- get.smart.agg.pval(T.obs.multiple, T.sub.multiple, side)
+      T.sub <- R.list[[1]]
+      T.obs <- R.list[[2]]
+      # stats have been transformed to right sided
+      side <- 1
     }
+  # estimate the cdf and get p-value --------
+  .cdf.est <- estimate.cdf(T.sub)
+  .cdf.smoothed <- .cdf.est$.cdf.smoothed
+  .ecdf <- .cdf.est$.ecdf
+  .x <- .cdf.est$.x
+  if (side==1) {
+    p.value <- 1 - .ecdf(T.obs)
+    p.value.kde <- 1 - .cdf.smoothed(T.obs)
+  } else if (side==-1) {
+    p.value <- .ecdf(T.obs)
+    p.value.kde <- .cdf.smoothed(T.obs)
   } else {
-    # multiple aggregation functions -----
-    if (verbose) {
-      message(sprintf("Adapting to the best among %d aggregation functions (reject for %s values)", length(S), ifelse(reject.larger, "larger", "smaller")))
-    }
-    T.obs <- sapply(S, function(.s) .s(T.obs.vec))
-    T.sub <- sapply(S, function(.s) apply(T.mat.transformed, 1, .s))
-    p.value <- get.smart.agg.pval(T.obs, T.sub, reject.larger=reject.larger)
+    p.value <- .ecdf(-abs(T.obs)) + 1 - .ecdf(abs(T.obs))
+    p.value.kde <- .cdf.smoothed(-abs(T.obs)) + 1 - .cdf.smoothed(abs(T.obs))
   }
-  return(list(p.value=p.value, T.obs=T.obs))
+  if (.plot) {
+    graphics::split.screen(c(2,1))
+    graphics::screen(1)
+    plot(.x, .ecdf(.x), type="l", 
+         xlab="stat", ylab="ECDF", 
+         main=sprintf("p-value=%f", p.value))
+    graphics::rug(T.sub, ticksize=0.08, lwd=0.7)
+    graphics::abline(v=T.obs, col="red", lwd=1.5)
+    graphics::screen(2)
+    plot(.x, .cdf.smoothed(.x), type="l",
+         xlab="stat", ylab="CDF (ks)", 
+         main=sprintf("p-value=%f", p.value.kde))
+    graphics::rug(T.sub, ticksize=0.08, lwd=0.7)
+    graphics::abline(v=T.obs, col="red", lwd=1.5)
+    graphics::close.screen(all = TRUE)
+  }
+  result <- list(p.value=p.value, 
+                 p.value.kde=p.value.kde, 
+                 T.obs.vec=T.obs.vec)
+  if (!is.list(S)) {
+    result$T.agg.obs <- T.obs
+    result$T.agg.sub <- T.sub
+  } else {
+    result$T.agg.obs <- T.obs.multiple
+    result$T.agg.sub <- T.sub.multiple
+  }
+  return(result)
 }

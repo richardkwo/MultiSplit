@@ -1,7 +1,6 @@
 # dip test ---------
-
 # for solving beta from beta = gamma^{-1}(d) ----
-solve.beta <- function(d) {
+solve_beta <- function(d) {
   if ((6.259 <= d) & (d <= 6.29)) {
     # about 2 x pi
     return(Inf)
@@ -19,7 +18,7 @@ solve.beta <- function(d) {
 }
 
 # get reference sample -----
-get.ref.dist <- function(beta.est, n, n.monte.carlo=1000) {
+get_ref_dist <- function(beta.est, n, n.monte.carlo=1000) {
   if (is.infinite(beta.est)) {
     # normal
     .sample <- function() {
@@ -42,7 +41,7 @@ get.ref.dist <- function(beta.est, n, n.monte.carlo=1000) {
 }
 
 # estimate d -------
-estimate.d <- function(x, h.sel=kedd::h.ucv, kernel="gaussian") {
+estimate_d <- function(x, h.sel=kedd::h.ucv, kernel="gaussian") {
   h.f <- h.sel(x, deriv.order = 0)$h
   f.hat <- suppressWarnings(kedd::dkde(x, deriv.order = 0, h=h.f, kernel=kernel))
   eval.points <- f.hat$eval.points
@@ -84,9 +83,9 @@ dip.test.pval <- function(x, h.sel=kedd::h.mlcv, kernel="gaussian", n.monte.carl
   x <- (x - mean(x)) / stats::sd(x)
   x <- (x - min(x)) / (max(x) - min(x))
   # estimate d
-  d.hat <- estimate.d(x, h.sel=h.sel, kernel=kernel)
-  beta.hat <- solve.beta(d.hat)
-  ref.vals <- get.ref.dist(beta.hat, length(x), n.monte.carlo = n.monte.carlo)
+  d.hat <- estimate_d(x, h.sel=h.sel, kernel=kernel)
+  beta.hat <- solve_beta(d.hat)
+  ref.vals <- get_ref_dist(beta.hat, length(x), n.monte.carlo = n.monte.carlo)
   dip.x <- diptest::dip(x, min.is.0 = TRUE) * 2
   pval.x <- (sum(ref.vals > dip.x) + stats::runif(1)) / (n.monte.carlo + 1)
   return(pval.x)

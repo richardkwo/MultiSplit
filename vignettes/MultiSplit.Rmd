@@ -12,7 +12,10 @@ vignette: >
 ```{r, include = FALSE}
 knitr::opts_chunk$set(
   collapse = TRUE,
-  comment = "#>"
+  comment = "#>",
+  fig.width = 5, 
+  fig.height = 6, 
+  dpi = 150
 )
 ```
 
@@ -30,13 +33,15 @@ library(MASS)
 library(MultiSplit)
 library(future)
 plan(multisession)   # run inner loop of `test.multisplit` in parallel
+
+set.seed(42)
 ```
 
 ## Testing zero mean
 
-Let $X$ be a random vector. Consider testing the hypothesis that $X$ has mean zero from iid observations. For that purpose, we can randomly divide the sample into two parts of equal size. Let $\hat{\mu}_1$,$\hat{\mu}_2$ be the mean vector of the two parts. If hypothesis holds, we expect \$\\hat{\\mu}\_1\^{\\top} \\hat{\\mu}\_2 \\approx 0\$; otherwise, we expect $\hat{\mu}_1^{\top} \hat{\mu}_2 > 0$. This motivates the following test statistic $$T_n:=\frac{\sqrt{n / 2} \hat{\mu}_1^\top  \hat{\mu}_2}{\hat{\mu}_1^{\top} \hat{\Sigma}_2 \hat{\mu}_1}, $$
+Let $X$ be a random vector. Consider testing the hypothesis that $X$ has mean zero from iid observations. For that purpose, we can randomly divide the sample into two parts of equal size. Let $\hat{\mu}_1$,$\hat{\mu}_2$ be the mean vector of the two parts. If hypothesis holds, we expect $\hat{\mu}_1^{\top} \hat{\mu}_2 \approx 0$; otherwise, we expect $\hat{\mu}_1^{\top} \hat{\mu}_2 > 0$. This motivates the following test statistic $$T_n:=\frac{\sqrt{n / 2} \hat{\mu}_1^\top  \hat{\mu}_2}{\hat{\mu}_1^{\top} \hat{\Sigma}_2 \hat{\mu}_1}, $$
 
-which has a standard normal limit under the null hypothesis \$\\mathbb{E} X=\\mathbf{0}\$. Here $\hat{\Sigma}_2$ is the sample covariance of the second part. This "single-split" test statistic can be computed with the function below.
+which has a standard normal limit under the null hypothesis $\mathbb{E} X=0$. Here $\hat{\Sigma}_2$ is the sample covariance of the second part. This "single-split" test statistic can be computed with the function below.
 
 ```{r}
 test.mean.zero.single <- function(X) {
@@ -49,7 +54,8 @@ test.mean.zero.single <- function(X) {
 }
 ```
 
-Let us try it on $X \sim \mathcal{N}(\mu, \Sigma)$.
+Let us try it on $X \sim N(\mu, \Sigma)$. The following shows its 
+distribution under the null and a (local) alternative (vertical line marks the mean).
 
 ```{r, fig.show="hold", out.width="40%"}
 p <- 3
@@ -60,11 +66,13 @@ stat.single.null <- replicate(200, {
   X <- mvrnorm(n, rep(0, p), Sigma)
   test.mean.zero.single(X)})
 hist(stat.single.null, main="H0")
+abline(v=mean(stat.single.null), lty=2)
 # under the alt
 stat.single.alt <- replicate(200, {
-  X <- mvrnorm(n, rep(1.5 / sqrt(n), p), Sigma)
+  X <- mvrnorm(n, rep(1.7 / sqrt(n), p), Sigma)
   test.mean.zero.single(X)})
 hist(stat.single.alt, main="H1")
+abline(v=mean(stat.single.alt), lty=2)
 ```
 
 We can check its level and power at nominal level 0.05.
@@ -83,56 +91,65 @@ X <- mvrnorm(n, rep(0, p), Sigma)
 replicate(10, test.mean.zero.single(X))
 ```
 
-Now suppose we run it $L=50$ times and take the arithmetic average as our aggregated statistic $S_n$. This test statistic might have a weird null distribution.
+Now suppose we run it $L=50$ times and take the arithmetic average as our aggregated statistic $S_n$. This test statistic's distribution is unknown (and can be unusual) 
+under the null and the alternative.
 
 ```{r, fig.align='center'}
-L <- 50
+n.splits <- 50
+# under the null
 T.mat <- t(replicate(200, {
   X <- mvrnorm(n, rep(0, p), Sigma)
-  replicate(L, test.mean.zero.single(X))
+  replicate(n.splits, test.mean.zero.single(X))
 }))
 S.vec <- apply(T.mat, 1, mean)
-hist(S.vec, xlab="S", main="H0")
+hist(S.vec, xlab="S (50 splits)", main="H0")
+abline(v=mean(S.vec), lty=2)
+# under the alt
+T.mat <- t(replicate(200, {
+  X <- mvrnorm(n, rep(1.7 / sqrt(n), p), Sigma)
+  replicate(n.splits, test.mean.zero.single(X))
+}))
+S.vec <- apply(T.mat, 1, mean)
+hist(S.vec, xlab="S (50 splits)", main="H1")
+abline(v=mean(S.vec), lty=2)
 ```
 
 Nevertheless, statistic $S_n$ can be calibrated automatically by `MultiSplit`. The p-value according to $S_n$ can be computed with function `test.multisplit`.
 
-```{r}
-get.pval.S <- function(X) {
-  test.multisplit(X, test.mean.zero.single, 
-                  q.null = qnorm, 
-                  S=function(x) mean(x, na.rm=TRUE),
-                  reject.larger = TRUE, 
-                  B=200,
-                  n.splits=L)$p.value
-}
-```
-
 Here we must specify `q.null` to be the (pivotal, large-sample) null quantile function of the single-split test $T_n$. Statistic $S_n$ is defined through an aggregation function `S`.
 
-Let' s look an instance under the null.
+Let' s look an instance under the null. 
 
 ```{r}
 X <- mvrnorm(n, rep(0, p), Sigma)
-pval.single <- 1 - pnorm(replicate(5, test.mean.zero.single(X)))
-print(pval.single)
-pval.S <- replicate(5, get.pval.S(X))
-print(pval.S)
+n.splits <- 50
+result <- test.multisplit(X, test.mean.zero.single, 
+                          q.null=qnorm, side=1, n.splits=n.splits, 
+                          B=100, 
+                          verbose=1, .plot=TRUE)
+# pvals from 50 splits, and the pval of the aggregated stat
+plot(1-pnorm(result$T.obs.vec), xlab="split", ylab="p-value")
+abline(h=result$p.value.kde)
 ```
 
-The p-value from $S_n$ has less conditional variability.
+The plot above shows the individual p-values from the 50 splits, along with the 
+p-value corresponding to the aggregated statistic (horizontal line).
 
 Now consider an instance under the alternative.
 
 ```{r}
-X <- mvrnorm(n, rep(2.6 / sqrt(n), p), Sigma)
-pval.single <- 1 - pnorm(replicate(5, test.mean.zero.single(X)))
-print(pval.single)
-pval.S <- replicate(5, get.pval.S(X))
-print(pval.S)
+X <- mvrnorm(n, rep(1.7 / sqrt(n), p), Sigma)
+n.splits <- 50
+result <- test.multisplit(X, test.mean.zero.single, 
+                          q.null=qnorm, side=1, n.splits=n.splits, 
+                          B=100, 
+                          verbose=1, .plot=TRUE)
+# pvals from 50 splits, and the pval of the aggregated stat
+plot(1-pnorm(result$T.obs.vec), xlab="split", ylab="p-value")
+abline(h=result$p.value.kde)
 ```
 
-The $S_n$ test renders a clear rejection!
+The aggregated p-value=`r result$p.value.kde` renders a clear rejection.
 
 ## Testing multivariate unimodality
 

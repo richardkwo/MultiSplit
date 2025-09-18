@@ -16,3 +16,21 @@ get.m.out.n.tuples <- function(m, n, B) {
   tuple.mat <- tuple.mat[1:B, ]
   return(tuple.mat)
 }
+
+#' Estimate the cdf with and without smoothing
+#' @param z values
+#' @export
+#' @return A list consists of functions .ecdf (without smoothing), 
+#'   .cdf.smoothed (with kernel smoothing) and .x (grid)
+#' @examples
+#' estimate.cdf(rnorm(30))
+estimate.cdf <- function(z) {
+  # no smoothing
+  .ecdf <- stats::ecdf(z)
+  # use kernel smoothing
+  .dens <- stats::density(z)
+  ..cdf.smoothed <- function(x) mean(stats::pnorm((x - z)/.dens$bw))
+  .cdf.smoothed <- Vectorize(..cdf.smoothed)
+  # grid
+  return(list(.ecdf=.ecdf, .cdf.smoothed=.cdf.smoothed, .x=.dens$x))
+}
